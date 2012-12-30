@@ -1,154 +1,153 @@
 var mqtt = require('mqttjs');
 
-struct ack_t {
-	string topic;
-	vector pks;
-};
+// TODO: fix MQTT.js connect() of parse.js, the null return of parse_string() bug...
 
-function mqtt_server(opts) {
+function MQTTNotificServer(opts) {
 	this.opts = {
-
+		defaultVersion: 'MQIsdp',
+		defaultVersionNum: 3,
+		defaultKeepalive : 60,
+		maxConnections: 3000,
 	};
 
 	this.opts = util.merge(this.opts, opts);
 
-	this.topics = {};
-	this.topics[topic] = {
-		c: connection,
-		q: [],
-	};
+	var server = this.server = mqtt.createServer(_handler);
+	
+	server.maxConnections = this.opts.maxConnections;
+	server.channels = {};
+
+	function _isValidId(id) {
+		// id.length < 1 || id.length > 23 return false;
+	}
+
+	function _handler(client) {
+		function _destroy() { client.stream.destroy(); }
+		function _destroySoon() { client.stream.destroySoon(); }
+
+		client.stream.setNoDelay();
+		client.stream.setTimeout(DEFAULT_KEEPALIVE, _destroySoon);
+
+		client.on('connect', function (packet) {
+			// Check version and client id
+			if (packet.version != DEFAULT_VERSION || packet.versionNum < DEFAULT_VERSION_NUM) {
+				this.connack({ returnCode: 1 }); _destroySoon(); return;
+			} else if (!_isValidId(packet.client)) {
+				this.connack({ returnCode: 2 }); _destroySoon(); return;
+			}
+
+			this.id = packet.client;
+			this.clean = packet.clean;
+			this.keepalive = packet.keepalive;
+			this.stream.setTimeout(this.keepalive);
+
+			// Config channel
+			var channel = server.channels[this.id];
+
+			if (!channel)
+				channel = server.channels[this.id] = {c: this, q: [], a: []};
+			else if (channel.c) {
+				channel.c.stream.destroy();
+				channel.c = this;
+			}
+
+			if (this.clean) {
+				// Clean session
+				channel.q.length = channel.a.length = 0;
+			} else {
+				// Publish retained packets
+				var self = this;
+
+				channel.q.forEach(function (packet) {
+					self.publish(packet);
+				});
+				channel.a.forEach(function (packet) {
+					packet.dup = true;
+					self.publish(packet);
+				});
+				// Concat pubq to ackq
+				channel.a = channel.a.concat(channel.q);
+				channel.q.length = 0;
+			}
+		});
+
+		client.on('puback', function (packet) {
+			if (!this.id) { _destroy(); return; }
+
+			var channel = server.channels[this.id];
+			if (!channel) return;
+
+			var a = channel.a;
+
+			for (var i = 0, j = a.length; i < j; i++) {
+				if (a[i].messageId === packet.messageId) {
+					delete a[i];
+					break;
+				}
+			}
+		});
+
+		client.on('pingreq', function(packet) {
+			this.pingresp();
+		});
+
+		client.on('disconnect', _destroySoon);
+
+		client.on('error', function (err) {
+			util.log('error! - ' + err);
+		});
+
+		client.on('close', function () {
+			if (!this.id) return;
+
+			var channel = server.channels[this.id];
+
+			if (channel && channel.c === this) {
+				channel.c = null;
+			}
+		});
+
+		var evs = ['connack', 'publish', 'pubrec', 'pubrel', 'pubcomp',
+				   'subscribe', 'suback', 'unsubscribe', 'unsuback',
+				   'pingresp', 'reserved'];
+
+		evs.forEach(function (ev) {
+			client.on(ev, _destroy);
+		});
+	}
 }
 
-mqtt_server.prototype.listen = function (port, binding) {
-
+MQTTNotificServer.prototype.listen = function (port, address) {
+	this.server.listen(port, address);
 };
 
-mqtt_server.prototype.publish = function (notific) {
-	this.buffer.push(notific);
-	//
-	if (client) {
-		client.publish({ payload: notific });
-	} else {
-		topic.push(notific);
+// per minute
+function _gc() {
+	// clean expired packets;
+	// clean empty channel;
+	if (!channel.c && !channel.q.length && !channel.a.length) {
+		delete channels[id];
 	}
-};
+	// generate feedback task;
+}
 
-on_connect(function (client) {
-	// 仅保持一个连接
-	if (is_connect) {
-		client.end();
-	}
-	while (has_element()) {
-		client.write(req);
-		ack_queue.push(req);
-	}
-	client.setTimeout(MQTT_KEEPALIVE);
-});
+// RPC 接口要有速率控制
+function btalk_handler() {
+	// beanstalk_get_task();
 
-on_disconnect(function (client) {
-	move_nonack_pkts_to_queue;
-});
+	for (var i = 0; i < tesaa.length; i++) {
+		tesaa[i];
 
-mqtt.createServer(funciton (client) {
-	var self = this;
+		var id = get_id();
+		var channel = server.get_channel(id);
 
-	self
-
-}).listen(1883, '127.0.0.1');
-
-
-
-var server = mqtt.createServer(onConnect);
-
-server.maxConnections = MAX_CONN;
-
-server.clients = {};
-server.topics = {};
-
-server.listen(1883);
-
-function onConnect(client) {
-	client.stream.setNoDelay();
-
-	client.stream.setTimeout(DEF_CONN_TIMEOUT, function () {
-		this.destroySoon();
-	});
-
-	client.on('connect', function (packet) {
-		if (packet.versionNum != 3) {
-			this.connack({returnCode: 1});
-			this.stream.destrySoon();
-			return;
-		} else if (!isValid(packet.client)) {
-			this.connack({returnCode: 2});
-			this.stream.destrySoon();
-			return;
-		}
-
-		this.id = packet.client;
-
-		this.stream.setTimeout(packet.keepalive);
-
-		if (this.clean) {
-			// clean session
+		if (!channel.c) {
+			if (packet.retain)
+				channel.q.push(packet);
 		} else {
-			// Publish retain packet
+			channel.c.publish(packet);
+			if (packet.retain)
+				channel.a.push(packet);
 		}
-	});
-
-	client.on('puback', function (packet) {
-		if (!this.id) return;
-	});
+	}
 }
-
-
-var server = mqtt.createServer(function (client) {
-  var self = this;
-
-  if (!self.clients) self.clients = {};
-  if (!self.topics) self.topics = {};
-
-  client.stream.setNoDelay();
-
-  client.on('connect', function(packet) {
-    client.connack({returnCode: 0});
-
-    client.id = packet.client;
-
-    client.stream.setTimeout(packet.keepalive, function () {
-    	this.destroySoon();
-    });
-
-    self.clients[client.id] = client;
-  });
-
-  client.on('puback', function(packet) {
-  	delete self.topics[client.session];
-  });
-
-  client.on('subscribe', function(packet) {
-    var granted = [];
-    for (var i = 0; i < packet.subscriptions.length; i++) {
-      granted.push(packet.subscriptions[i].qos);
-    }
-
-    client.suback({granted: granted});
-  });
-
-  client.on('pingreq', function(packet) {
-    client.pingresp();
-  });
-
-  client.on('disconnect', function(packet) {
-    client.stream.destroySoon();
-  });
-
-  client.on('close', function(err) {
-    delete self.clients[client.id];
-  });
-
-  client.on('error', function(err) {
-    client.stream.destroy();
-    util.log('error!');
-  });
-}).listen(1883);
