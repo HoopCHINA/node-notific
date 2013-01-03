@@ -7,7 +7,7 @@ var MQTT_VERSION = 'MQIsdp'
 
 function MQTTNotificServer(opts) {
   this.opts = {
-    defaultKeepalive : 60,
+    defaultKeepalive: 60,
     maxConnections: 3000,
   };
 
@@ -34,7 +34,7 @@ MQTTNotificServer.prototype._handler = function (client) {
   }
 
   client.stream.setNoDelay();
-  client.stream.setTimeout(server.opts.defaultKeepalive, _destroySoon);
+  client.stream.setTimeout(this.opts.defaultKeepalive, _destroySoon);
 
   client.on('connect', function (packet) {
     // Check version and client id
@@ -138,6 +138,8 @@ MQTTNotificServer.prototype.notific = function (tokens, payload, expiry) {
 
 MQTTNotificServer.prototype._notific = function (token, payload, expiry) {
   var server = this.server;
+
+  // TODO: check stream readyState... instead of check NULL...
 
   var id = this._getClientIdByToken(token);
   var channel = server.channels[id];
