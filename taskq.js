@@ -7,6 +7,9 @@ var mqtt_server = require('./mqtt');
 // tcp__max_connections();
 // ...
 
+/*
+  notific(ostype, appid, tokens, payload, expiry);
+ */
 
 // RPC 接口要有速率控制
 function btalk_handler() {
