@@ -1,4 +1,4 @@
-var mqtt = require('mqttjs');
+var mqtt = require('./lib/mqtt');
 
 // TODO: fix MQTT.js connect() of parse.js, the null return of parse_string() bug...
 
@@ -34,6 +34,7 @@ MQTTNotificServer.prototype._handler = function (client) {
   }
 
   client.stream.setNoDelay();
+  client.stream.setKeepAlive(true, 150);
   client.stream.setTimeout(this.opts.defaultKeepalive, _destroySoon);
 
   client.on('connect', function (packet) {
