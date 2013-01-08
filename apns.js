@@ -1,5 +1,24 @@
 var apns = require('apn')
+  , beans = require('fivebeans'),
   , config = require('./config.json');
+
+function BeansWorker() {
+  var cli = new beans.client('10.0.1.1', 11300);
+
+  cli.connect(function (err) {
+    if (err !== null) {
+      process.nextTick(BeansWorker);
+    } else {
+      DoJobs(cli);
+    }
+  });
+}
+
+function DoJobs(cli) {
+  cli.use('apns', function (err, tube) {
+    cli.reserve();
+  });
+}
 
 /*
   notific(appid, tokens, payload, expiry);

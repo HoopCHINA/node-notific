@@ -6,6 +6,11 @@ var rpc = require('msgpack-rpc')
 var server = rpc.createServer();
 var btalk = new beans.client('127.0.0.1', 11300);
 
+
+var tubes = {};
+
+
+
 btalk.connect(function (err) {
   //
 });
