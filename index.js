@@ -45,6 +45,38 @@ Producer.prototype._handler(req, resp) {
   }
 };
 
+function taskq.dispatch_next() {
+  // get task
+  // if no task return;
+
+  // request
+  var req = http.request(opts, function (res) {
+    if (res.code === 200) {
+      // OK
+      taskq.dispatch_next();
+    } else {
+      // ERROR
+      // wait a while {
+        taskq.dispatch_next();
+      //}
+    }
+  });
+
+  req.setTimeout(TIMEOUT, end);
+  req.setNoDelay();
+
+  req.on('error', function () {
+    // put back task
+  });
+
+  req.write('task-data');
+  req.end();
+}
+
+function gc() {
+  // clear expired task
+}
+
 function MQTTWorker(opts) {
 
 }
@@ -52,20 +84,3 @@ function MQTTWorker(opts) {
 function APNSWorker(opts) {
 
 }
-
-var zmq = require('zmq')
-  , mq = zmq.socket('pull')
-  , notific = require('../')
-  , remote_end = 'tcp://127.0.0.1:3000';
-
-mq.identity = 'apns';
-mq.connect(remote_end);
-
-mq.on('message', function (data) {
-  //console.log(mq.identity + ': received data ' + data.toString());
-  var job = JSON.parse(data.toString());
-  notific.apns(job.appid, job.tokens, job.payload, job.expiry);
-});
-
-
-function Producer
