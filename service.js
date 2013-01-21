@@ -2,29 +2,30 @@ var rpc = require('msgpack-rpc')
   , apns = require('./apns')
   , mqtt = require('./mqtt');
 
+// UDP redirector need use session validation
+// device 需要生成一个 random, 服务端回应 ~random...
+// device 需验证
+
 // RPC 接口要有速率控制
 var server = rpc.createServer();
 var btalk = new beans.client('127.0.0.1', 11300);
 
-
 var tubes = {};
-
-
 
 btalk.connect(function (err) {
   //
 });
 
 function split_tasks(ostype, appid, tokens, payload, expiry) {
-    var task = {
-      ostype: ostype,
-      appid: appid,
-      tokens: tokens,
-      payload: payload,
-      expiry: expiry
-    };
+  var task = {
+    ostype: ostype,
+    appid: appid,
+    tokens: tokens,
+    payload: payload,
+    expiry: expiry
+  };
 
-    return { tube: task, tube2: task };
+  return { tube: task, tube2: task };
 }
 
 server.setHandler({
