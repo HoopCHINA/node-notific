@@ -1,13 +1,39 @@
-var workq = require('../lib/workq')
-  , http = require('http');
+var http = require('http')
+  , workq = require('../lib/workq');
 
 var queue = new workq.WorkQueue()
-  , apns = new apns.NotificServer();
+  , mqtt = new workq.WorkQueue()
+  , lb = new workq.LoadBalancer(mqtt);
 
 queue.on('work', function (work) {
   // pre-process
-  apns.notific(work, expiry, dup);
+  mqtt.enqueue(work);
 });
+
+lb.addWorker(new HTTPWorker(url));
+lb.addWorker(new HTTPWorker(url2));
+
+lb.on('fail', function (work) {
+  mqtt.enqueue(work);
+});
+
+lb.on('ready', dispatch_work);
+
+mqtt.on('work', dispatch_work);
+
+function dispatch_work() {
+  var worker, work;
+
+  for (;;) {
+    worker = lb.pick();
+    if (!worker) return;
+
+    work = workq.reserve();
+    if (!work) return;
+
+    worker.run(work);
+  }
+}
 
 var server = http.createServer(function (req, resp) {
   if (req.url !== '/work') {
