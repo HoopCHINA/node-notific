@@ -1,40 +1,85 @@
-var http = require('http')
-  , workq = require('../lib/workq');
+var zmq = require('zmq');
 
-var queue = new workq.WorkQueue()
-  , mqtt = new workq.WorkQueue()
-  , lb = new workq.LoadBalancer(mqtt);
+var config = {
+  http: {
+    address: '127.0.0.1',
+    port: 12320,
+  },
+  mqtt: [
+    'tcp://127.0.0.1:12340',
+    'tcp://127.0.0.1:12341',
+    'tcp://127.0.0.1:12342',
+    'tcp://127.0.0.1:12343',
+    'tcp://127.0.0.1:12344',
+    'tcp://127.0.0.1:12345',
+    'tcp://127.0.0.1:12346',
+    'tcp://127.0.0.1:12347',
+  ],
+  apns: [
+    'tcp://127.0.0.1:12330',
+  ],
+};
 
-queue.on('work', function (work) {
-  // pre-process
-  mqtt.enqueue(work);
-});
+var wq = workq.WorkQueue();
+  , mq = {mqtt: [], apns: []};
 
-lb.addWorker(new HTTPWorker(url));
-lb.addWorker(new HTTPWorker(url2));
+// Work: {ostype, appid, clients, payload, expiry}
+wq.on('work', function (work) {
+  var os = work.ostype
+    , queues = mq[os]
+    , qnum = queues.length
+    , splits;
 
-lb.on('fail', function (work) {
-  mqtt.enqueue(work);
-});
+  if (qnum === 0) return;
 
-lb.on('ready', dispatch_work);
+  splits = [];
 
-mqtt.on('work', dispatch_work);
-
-function dispatch_work() {
-  var worker, work;
-
-  for (;;) {
-    worker = lb.pick();
-    if (!worker) return;
-
-    work = workq.reserve();
-    if (!work) return;
-
-    worker.run(work);
+  if (qnum === 1) {
+    splits[0] = c;
+  } else {
+    work.clients.forEach(function (c) {
+      var h = _hash(c, qnum);
+      if (!splits[h]) splits[h] = [];
+      splits[h].push(c);
+    });
   }
-}
 
+  splits.forEach(function (a, i) {
+    var socket = queues[i]
+      , w_;
+
+    if (socket) {
+      w_ = {
+        appid: work.appid,
+        clients: a,
+        payload: work.payload,
+        expiry: work.expiry,
+      };
+      socket.send(msgpack.pack(w_));
+    }
+  });
+});
+
+// Create ZMQ sockets
+(function (types) {
+  types.forEach(function (type) {
+    config[type].forEach(function (port, i) {
+      var socket = mq[type][i] = zmq.socket('push');
+      socket.identity = ['upstream', type, i].join('-');
+      socket.bindSync(port);
+
+      if (zmq.version >= '3.0.0') {
+        socket.setsockopt(zmq.ZMQ_SNDHWM, 5);
+        socket.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+        socket.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+      } else {
+        socket.setsockopt(zmq.ZMQ_HWM, 5);
+      }
+    });
+  });
+})(['mqtt', 'apns']);
+
+// Create HTTP server
 var server = http.createServer(function (req, resp) {
   if (req.url !== '/work') {
     resp.end();
@@ -50,13 +95,13 @@ var server = http.createServer(function (req, resp) {
 
   req.on('end', function () {
     try {
-      work = msgpack.unpack(Buffer.concat(chunks));
+      work = JSON.parse(Buffer.concat(chunks));
     } catch (e) {}
 
     if (!work) {
       resp.statusCode = 500;
     } else {
-      queue.enqueue(work);
+      wq.enqueue(work);
       resp.statusCode = 200;
     }
 
@@ -64,4 +109,5 @@ var server = http.createServer(function (req, resp) {
   });
 });
 
-server.bind(3001, '127.0.0.1');
+server.listen(config['http']['port']
+            , config['http']['address']);

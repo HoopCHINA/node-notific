@@ -6,7 +6,7 @@ var queue = new workq.WorkQueue()
 
 queue.on('work', function (work) {
   // pre-process
-  apns.notific(work, expiry, dup);
+  apns.notific(work, expiry);
 });
 
 var server = http.createServer(function (req, resp) {
