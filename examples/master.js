@@ -1,11 +1,13 @@
-var zmq = require('zmq');
+var zmq = require('zmq')
+  , http = require('http')
+  , workq = require('../lib/workq');
 
 var config = {
   http: {
     address: '127.0.0.1',
     port: 12320,
   },
-  mqtt: [
+  droid: [
     'tcp://127.0.0.1:12340',
     'tcp://127.0.0.1:12341',
     'tcp://127.0.0.1:12342',
@@ -15,47 +17,48 @@ var config = {
     'tcp://127.0.0.1:12346',
     'tcp://127.0.0.1:12347',
   ],
-  apns: [
+  ios: [
     'tcp://127.0.0.1:12330',
   ],
 };
 
-var wq = workq.WorkQueue();
-  , mq = {mqtt: [], apns: []};
+var wq = workq.WorkQueue()
+  , mq = {droid: [], ios: []};
 
 // Work: {ostype, appid, clients, payload, expiry}
 wq.on('work', function (work) {
   var os = work.ostype
-    , queues = mq[os]
-    , qnum = queues.length
+    , q = mq[os]
+    , p = q && q.length
     , splits;
 
-  if (qnum === 0) return;
+  if (!p || !work.appid
+         || !Array.isArray(work.clients)
+         || !work.payload) return;
 
-  splits = [];
-
-  if (qnum === 1) {
-    splits[0] = c;
+  if (p === 1) {
+    splits = [work.clients];
   } else {
-    work.clients.forEach(function (c) {
-      var h = _hash(c, qnum);
-      if (!splits[h]) splits[h] = [];
-      splits[h].push(c);
+    splits = [];
+    work.clients.forEach(function (c, i) {
+      var h = parseInt(c.slice(-2), 16) % p;
+      if (!splits[h]) {
+        splits[h] = [c];
+      } else {
+        splits[h].push(c);
+      }
     });
   }
 
   splits.forEach(function (a, i) {
-    var socket = queues[i]
-      , w_;
-
-    if (socket) {
-      w_ = {
+    var s = q[i];
+    if (s) {
+      s.send(JSON.stringify({
         appid: work.appid,
         clients: a,
         payload: work.payload,
         expiry: work.expiry,
-      };
-      socket.send(msgpack.pack(w_));
+      }));
     }
   });
 });
@@ -64,20 +67,22 @@ wq.on('work', function (work) {
 (function (types) {
   types.forEach(function (type) {
     config[type].forEach(function (port, i) {
-      var socket = mq[type][i] = zmq.socket('push');
-      socket.identity = ['upstream', type, i].join('-');
-      socket.bindSync(port);
+      var s = mq[type][i]
+            = zmq.socket('push');
+
+      s.identity = ['upstream', type, i].join('-');
+      s.bindSync(port);
 
       if (zmq.version >= '3.0.0') {
-        socket.setsockopt(zmq.ZMQ_SNDHWM, 5);
-        socket.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
-        socket.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+        s.setsockopt(zmq.ZMQ_SNDHWM, 5);
+        s.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+        s.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
       } else {
-        socket.setsockopt(zmq.ZMQ_HWM, 5);
+        s.setsockopt(zmq.ZMQ_HWM, 5);
       }
     });
   });
-})(['mqtt', 'apns']);
+})(['droid', 'ios']);
 
 // Create HTTP server
 var server = http.createServer(function (req, resp) {
@@ -98,16 +103,17 @@ var server = http.createServer(function (req, resp) {
       work = JSON.parse(Buffer.concat(chunks));
     } catch (e) {}
 
-    if (!work) {
-      resp.statusCode = 500;
-    } else {
-      wq.enqueue(work);
+    if (work) {
       resp.statusCode = 200;
+      wq.enqueue(work);
+    } else {
+      resp.statusCode = 500;
     }
 
     resp.end();
   });
 });
 
+// Start server
 server.listen(config['http']['port']
             , config['http']['address']);
