@@ -1,7 +1,6 @@
 var zmq = require('zmq')
   , http = require('http')
   , util = require('util')
-  , workq = require('../lib/workq')
   , mqtt = require('../lib/mqtt');
 
 var config = {
@@ -24,7 +23,7 @@ var config = {
 
 var mq = zmq.socket('pull')
   , id = Number(process.argv[2]) || 0
-  , pub = mqtt.createServer({id: id});
+  , push = mqtt.createServer({id: id});
 
 // Config ZMQ sockets
 mq.identity = ['worker', 'droid', id].join('-');
@@ -43,14 +42,14 @@ mq.on('message', function (data) {
   try {
     var work = JSON.parse(data);
     if (work) {
-      pub.notific(work.appid, work.clients
-                , work.payload, work.expiry);
+      push.notific(work.appid, work.clients
+                 , work.payload, work.expiry);
     }
   } catch (e) {
     util.log('Message error! - ' + e.message);
   }
 });
 
-// Start notific server
-pub.listen(config['mqtt'][id]['port']
-         , config['mqtt'][id]['address']);
+// Start push notific server
+push.listen(config['mqtt'][id]['port']
+          , config['mqtt'][id]['address']);

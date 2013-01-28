@@ -1,5 +1,6 @@
 var zmq = require('zmq')
   , http = require('http')
+  , util = require('util')
   , workq = require('../lib/workq');
 
 var config = {
@@ -86,8 +87,9 @@ wq.on('work', function (work) {
 
 // Create HTTP server
 var server = http.createServer(function (req, resp) {
-  if (req.url !== '/work') {
-    resp.end();
+  if (req.method !== 'POST' || req.url !== '/work') {
+    resp.statusCode = 403;
+    resp.end('Forbidden');
     return;
   }
 
@@ -105,12 +107,12 @@ var server = http.createServer(function (req, resp) {
 
     if (work) {
       resp.statusCode = 200;
+      resp.end('OK');
       wq.enqueue(work);
     } else {
       resp.statusCode = 500;
+      resp.end('Internal Server Error');
     }
-
-    resp.end();
   });
 });
 
