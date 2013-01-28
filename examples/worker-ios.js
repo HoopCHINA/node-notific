@@ -5,11 +5,11 @@ var zmq = require('zmq')
   , apns = require('../lib/apns');
 
 var config = {
-  master: 'tcp://127.0.0.1:12330',
   http: {
     address: '127.0.0.1',
     port: 12320,
   },
+  endp: 'tcp://127.0.0.1:12330',
 };
 
 var wq = workq.WorkQueue()
@@ -22,13 +22,13 @@ wq.on('work', function (work) {
       || !Array.isArray(work.clients)
       || !work.payload) return;
 
-  apns.notific(work.appid, work.clients,
-               work.payload, work.expiry);
+  apns.notific(work.appid, work.clients
+             , work.payload, work.expiry);
 });
 
 // Config ZMQ sockets
 mq.identity = ['worker', 'ios', id].join('-');
-mq.connect(config['master']);
+mq.connect(config['endp']);
 
 if (zmq.version >= '3.0.0') {
   mq.setsockopt(zmq.ZMQ_RCVHWM, 5);
