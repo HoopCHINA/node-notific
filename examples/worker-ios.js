@@ -1,7 +1,6 @@
 var zmq = require('zmq')
   , http = require('http')
   , util = require('util')
-  , workq = require('../lib/workq')
   , apns = require('../lib/apns');
 
 var config = {
@@ -12,19 +11,9 @@ var config = {
   endp: 'tcp://127.0.0.1:12330',
 };
 
-var wq = workq.WorkQueue()
-  , mq = zmq.socket('pull')
-  , id = Number(process.argv[2]) || 0;
-
-// Work: {appid, clients, payload, expiry}
-wq.on('work', function (work) {
-  if (!work.appid
-      || !Array.isArray(work.clients)
-      || !work.payload) return;
-
-  apns.notific(work.appid, work.clients
-             , work.payload, work.expiry);
-});
+var mq = zmq.socket('pull')
+  , id = Number(process.argv[2]) || 0
+  , push = apns.createAgent(opts);
 
 // Config ZMQ sockets
 mq.identity = ['worker', 'ios', id].join('-');
@@ -41,7 +30,10 @@ if (zmq.version >= '3.0.0') {
 mq.on('message', function (data) {
   try {
     var work = JSON.parse(data);
-    if (work) wq.enqueue(work);
+    if (work) {
+      push.notific(work.appid, work.clients
+                 , work.payload, work.expiry);
+    }
   } catch (e) {
     util.log('Message error! - ' + e.message);
   }

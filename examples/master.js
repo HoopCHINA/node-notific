@@ -1,7 +1,6 @@
 var zmq = require('zmq')
   , http = require('http')
-  , util = require('util')
-  , workq = require('../lib/workq');
+  , util = require('util');
 
 var config = {
   http: {
@@ -23,46 +22,7 @@ var config = {
   ],
 };
 
-var wq = workq.WorkQueue()
-  , mq = {droid: [], ios: []};
-
-// Work: {ostype, appid, clients, payload, expiry}
-wq.on('work', function (work) {
-  var os = work.ostype
-    , q = mq[os]
-    , p = q && q.length
-    , splits;
-
-  if (!p || !work.appid
-         || !Array.isArray(work.clients)
-         || !work.payload) return;
-
-  if (p === 1) {
-    splits = [work.clients];
-  } else {
-    splits = [];
-    work.clients.forEach(function (c, i) {
-      var h = parseInt(c.slice(-2), 16) % p;
-      if (!splits[h]) {
-        splits[h] = [c];
-      } else {
-        splits[h].push(c);
-      }
-    });
-  }
-
-  splits.forEach(function (a, i) {
-    var s = q[i];
-    if (s) {
-      s.send(JSON.stringify({
-        appid: work.appid,
-        clients: a,
-        payload: work.payload,
-        expiry: work.expiry,
-      }));
-    }
-  });
-});
+var mq = {droid: [], ios: []};
 
 // Create ZMQ sockets
 (function (types) {
@@ -108,7 +68,7 @@ var server = http.createServer(function (req, resp) {
     if (work) {
       resp.statusCode = 200;
       resp.end('OK');
-      wq.enqueue(work);
+      dispatch(work);
     } else {
       resp.statusCode = 500;
       resp.end('Internal Server Error');
@@ -116,6 +76,51 @@ var server = http.createServer(function (req, resp) {
   });
 });
 
+// Work: {ostype, appid, clients, payload, expiry}
+function dispatch(work) {
+  var os = work.ostype
+    , q = mq[os]
+    , p = q && q.length
+    , splits;
+
+  // Validate input
+  if (!p || !work.appid
+         || !Array.isArray(work.clients)
+         || !work.payload
+         || (work.expiry && work.expiry <= _now())) return;
+
+  if (p === 1) {
+    splits = [work.clients];
+  } else {
+    splits = [];
+    work.clients.forEach(function (c, i) {
+      var h = parseInt(c.slice(-2), 16) % p;
+      if (!splits[h]) {
+        splits[h] = [c];
+      } else {
+        splits[h].push(c);
+      }
+    });
+  }
+
+  splits.forEach(function (a, i) {
+    var s = q[i];
+    if (s) {
+      s.send(JSON.stringify({
+        appid: work.appid,
+        clients: a,
+        payload: work.payload,
+        expiry: work.expiry,
+      }));
+    }
+  });
+}
+
 // Start server
 server.listen(config['http']['port']
             , config['http']['address']);
+
+/* Internal */
+function _now() {
+  return ~~(Date.now() / 1000);
+}
