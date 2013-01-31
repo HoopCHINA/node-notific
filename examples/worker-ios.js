@@ -8,12 +8,20 @@ var config = {
     address: '127.0.0.1',
     port: 12320,
   },
+  apns: {
+    'com.hupu.GameMate': {
+      keyfile: 'cert/key.pem',
+      certfile: 'cert/cert.pem',
+      keepalive: 300,
+      maxcache: 200,
+    },
+  },
   endp: 'tcp://127.0.0.1:12330',
 };
 
 var mq = zmq.socket('pull')
   , id = Number(process.argv[2]) || 0
-  , push = apns.createAgent(opts);
+  , push = apns.createAgent(config['apns']);
 
 // Config ZMQ sockets
 mq.identity = ['worker', 'ios', id].join('-');

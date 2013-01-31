@@ -18,7 +18,16 @@ var config = {
     {address: '127.0.0.1', port: 3086},
     {address: '127.0.0.1', port: 3087},
   ],
-  endp: 'tcp://127.0.0.1:12330',
+  endp: [
+    'tcp://127.0.0.1:12340',
+    'tcp://127.0.0.1:12341',
+    'tcp://127.0.0.1:12342',
+    'tcp://127.0.0.1:12343',
+    'tcp://127.0.0.1:12344',
+    'tcp://127.0.0.1:12345',
+    'tcp://127.0.0.1:12346',
+    'tcp://127.0.0.1:12347',
+  ],
 };
 
 var mq = zmq.socket('pull')
@@ -27,7 +36,7 @@ var mq = zmq.socket('pull')
 
 // Config ZMQ sockets
 mq.identity = ['worker', 'droid', id].join('-');
-mq.connect(config['endp']);
+mq.connect(config['endp'][id]);
 
 if (zmq.version >= '3.0.0') {
   mq.setsockopt(zmq.ZMQ_RCVHWM, 5);
