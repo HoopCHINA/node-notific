@@ -8,6 +8,8 @@ var opts = {
   method: 'POST',
 };
 
+var token = '01234567 01234567 01234567 01234567';
+
 var req = http.request(opts, function (resp) {
   if (resp.statusCode != 200) {
     util.log('Server Error: ' + resp.statusCode);
@@ -32,11 +34,11 @@ req.on('error', function (err) {
 var data = JSON.stringify({
   ostype: 'ios',
   appid: 'com.hupu.GameMate',
-  clients: ['01234567 01234567 01234567 01234567 01234567 01234567 01234567 01234567'],
+  clients: [token],
   expiry: _now() + 3600,
   payload: {
     aps: {
-      alert: 'Hello, world!'
+      alert: 'Hello, world!',
     },
   },
 });
