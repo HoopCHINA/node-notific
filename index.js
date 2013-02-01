@@ -1,6 +1,3 @@
-var mqtt = require('./lib/mqtt')
-  , apns = require('./lib/apns');
-
 // TODO: Flow control
 
 // TODO: Redirector, use DNS#53 port to help with firewall
@@ -11,3 +8,8 @@ var mqtt = require('./lib/mqtt')
 // ...
 // 直接使用 DNS 技术... OK 了...
 // 使用 SRV 记录, 使用脚本生成 映射配置文件...
+
+// TODO: Feedback services
+
+exports.mqtt = require('./lib/mqtt')
+exports.apns = require('./lib/apns');

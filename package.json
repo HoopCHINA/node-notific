@@ -1,0 +1,25 @@
+{
+  "author": {
+    "name": "Wang Wenlin",
+    "email": "sopl.wang@gmail.com"
+  },
+  "name": "node-notific",
+  "description": "A library to help create push notification service for iOS and Android",
+  "version": "0.0.1",
+  "keywords": [
+    "ios",
+    "android",
+    "push",
+    "notification"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/HoopCHINA/node-notific.git"
+  },
+  "main": "index.js",
+  "engines": {
+    "node": ">=0.8.0"
+  },
+  "dependencies": {},
+  "devDependencies": {}
+}
