@@ -94,7 +94,8 @@ function dispatch(work) {
   } else {
     splits = [];
     work.clients.forEach(function (c, i) {
-      var h = parseInt(c.slice(-2), 16) % p;
+      var h = parseInt(c.slice(-2), 16);
+      h = ((h >> 4) * 13 + (h & 0xf)) % p;
       if (!splits[h]) {
         splits[h] = [c];
       } else {
