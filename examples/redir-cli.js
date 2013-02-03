@@ -19,9 +19,10 @@ var config = {
 var client = dgram.createSocket('udp4')
   , timer = setInterval(query, 10*1000)
   , id = process.argv[2] || 'deadcafe'
+  , seq = ~~(Math.random()*0x7fffffff)
   , buf = new Buffer(4+1+Buffer.byteLength(id));
 
-buf.writeUInt32BE(~~(Date.now()/1000), 0);
+buf.writeUInt32BE(seq, 0);
 buf.writeUInt8(id.length, 4);
 buf.write(id, 5);
 
@@ -34,14 +35,16 @@ function query() {
 
 client.on('message', function (msg, rinfo) {
   assert(msg.length == 12, 'msg.length == 12');
+  assert(msg.readUInt32BE(0) == seq, 'req/resp seq must equal');
+
   client.close();
   clearInterval(timer);
 
-  var seq = msg.readUInt32BE(0)
+  var seq_ = msg.readUInt32BE(0)
     , addr = Array.prototype.join.call(msg.slice(4, 8), '.')
     , port = msg.readUInt16BE(8)
     , ttl = msg.readUInt16BE(10);
 
   console.log('Reply from:', rinfo.address
-            , '{', seq, addr, port, ttl, '}');
+            , '{', seq_, addr, port, ttl, '}');
 });
