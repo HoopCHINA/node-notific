@@ -94,20 +94,20 @@ function dispatch(work) {
   } else {
     splits = [];
     work.clients.forEach(function (c, i) {
-      var h = parseInt(c.slice(-2), 16);
-      h = ((h >> 4) * 13 + (h & 0xf)) % p;
-      if (!splits[h]) {
-        splits[h] = [c];
+      var h = parseInt(c.slice(-2), 16)
+        , i = ((h >> 4) * 13 + (h & 0xf)) % p;
+      if (!splits[i]) {
+        splits[i] = [c];
       } else {
-        splits[h].push(c);
+        splits[i].push(c);
       }
     });
   }
 
   splits.forEach(function (a, i) {
-    var s = q[i];
-    if (s) {
-      s.send(JSON.stringify({
+    var z = q[i];
+    if (z) {
+      z.send(JSON.stringify({
         appid: work.appid,
         clients: a,
         payload: work.payload,
