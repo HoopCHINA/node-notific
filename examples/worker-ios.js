@@ -1,7 +1,7 @@
 var zmq = require('zmq')
   , http = require('http')
   , util = require('util')
-  , apns = require('../lib/apns');
+  , apns = require('../').apns;
 
 var config = {
   http: {
@@ -10,8 +10,8 @@ var config = {
   },
   apns: {
     'com.hupu.GameMate': {
-      keyfile: 'cert/key.pem',
-      certfile: 'cert/cert.pem',
+      keyfile: 'certs/key.pem',
+      certfile: 'certs/cert.pem',
       keepalive: 300,
       maxcache: 200,
     },

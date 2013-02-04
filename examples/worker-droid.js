@@ -1,7 +1,7 @@
 var zmq = require('zmq')
   , http = require('http')
   , util = require('util')
-  , mqtt = require('../lib/mqtt');
+  , mqtt = require('../').mqtt;
 
 var config = {
   http: {
