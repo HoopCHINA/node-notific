@@ -38,7 +38,7 @@ if (zmq.version >= '3.0.0') {
 mq.on('message', function (data) {
   try {
     var work = JSON.parse(data);
-    if (work) {
+    if (work && work.wrktyp == 'notific') {
       push.notific(work.appid, work.clients
                  , work.payload, work.expiry);
     }

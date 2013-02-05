@@ -4,7 +4,7 @@ var http = require('http')
 var opts = {
   hostname: '127.0.0.1',
   port: 12320,
-  path: '/work',
+  path: '/notific',
   method: 'POST',
 };
 
