@@ -40,6 +40,7 @@ var data = JSON.stringify({
     aps: {
       alert: 'Hello, world!',
     },
+    url: 'app://HOME',
   },
 });
 

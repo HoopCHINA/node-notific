@@ -7,6 +7,11 @@ var config = {
     address: '127.0.0.1',
     port: 12320,
   },
+  fbs:
+    'tcp://127.0.0.1:12321',
+  ios: [
+    'tcp://127.0.0.1:12330',
+  ],
   droid: [
     'tcp://127.0.0.1:12340',
     'tcp://127.0.0.1:12341',
@@ -17,36 +22,58 @@ var config = {
     'tcp://127.0.0.1:12346',
     'tcp://127.0.0.1:12347',
   ],
-  ios: [
-    'tcp://127.0.0.1:12330',
-  ],
 };
 
-var mq = {droid: [], ios: []};
+// Notific
+var mq = {ios: [], droid: []};
 
 // Create ZMQ sockets
 (function (types) {
   types.forEach(function (type) {
     config[type].forEach(function (port, i) {
-      var s = mq[type][i]
+      var z = mq[type][i]
             = zmq.socket('push');
 
-      s.identity = ['upstream', type, i].join('-');
-      s.bindSync(port);
+      z.identity = ['master', type, i].join('-');
+      z.bindSync(port);
 
       if (zmq.version >= '3.0.0') {
-        s.setsockopt(zmq.ZMQ_SNDHWM, 5);
-        s.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
-        s.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+        z.setsockopt(zmq.ZMQ_SNDHWM, 5);
+        z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+        z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
       } else {
-        s.setsockopt(zmq.ZMQ_HWM, 5);
+        z.setsockopt(zmq.ZMQ_HWM, 5);
       }
     });
   });
-})(['droid', 'ios']);
+})(['ios', 'droid']);
+
+// Feedbacks
+var fbs = zmq.socket('router')
+  , fbl = {ios: {}, droid: {}};
+
+fbs.identity = 'master-fbs';
+fbs.bindSync(config['fbs']);
+
+if (zmq.version >= '3.0.0') {
+  fbs.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+  fbs.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+}
+
+// Feedback: [{client: time}, ...]
+fbs.on('message', function (envelope, data) {
+  // TODO: feedbacks
+  // merge to fbl
+  fbs.send([envelope, '+OK']);
+});
 
 // Create HTTP server
 var server = http.createServer(function (req, resp) {
+  //if (req.method == 'GET' && req.url != '/feedback') {
+    // TODO: return feedbacks according `ostype`
+    // clean fbl
+  //}
+
   if (req.method != 'POST' || req.url != '/notific') {
     resp.statusCode = 403;
     resp.end('Forbidden');
