@@ -37,6 +37,7 @@ var mq = zmq.socket('pull')
 // Config ZMQ sockets
 mq.identity = ['worker', 'droid', id].join('-');
 mq.connect(config['endp'][id]);
+mq.on('error', noop);
 
 if (zmq.version >= '3.0.0') {
   mq.setsockopt(zmq.ZMQ_RCVHWM, 5);
@@ -62,3 +63,6 @@ mq.on('message', function (data) {
 // Start push notific server
 push.listen(config['mqtt'][id]['port']
           , config['mqtt'][id]['address']);
+
+/* Internal */
+function noop() {}

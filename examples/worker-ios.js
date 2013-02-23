@@ -26,6 +26,7 @@ var mq = zmq.socket('pull')
 // Config ZMQ sockets
 mq.identity = ['worker', 'ios', id].join('-');
 mq.connect(config['endp']);
+mq.on('error', noop);
 
 if (zmq.version >= '3.0.0') {
   mq.setsockopt(zmq.ZMQ_RCVHWM, 5);
@@ -46,3 +47,6 @@ mq.on('message', function (data) {
     util.log('Message error! - ' + e.message);
   }
 });
+
+/* Internal */
+function noop() {}

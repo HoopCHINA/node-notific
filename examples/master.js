@@ -36,6 +36,7 @@ var mq = {ios: [], droid: []};
 
       z.identity = ['master', type, i].join('-');
       z.bindSync(port);
+      z.on('error', noop);
 
       if (zmq.version >= '3.0.0') {
         z.setsockopt(zmq.ZMQ_SNDHWM, 5);
@@ -54,6 +55,7 @@ var fbs = zmq.socket('router')
 
 fbs.identity = 'master-fbs';
 fbs.bindSync(config['fbs']);
+fbs.on('error', noop);
 
 if (zmq.version >= '3.0.0') {
   fbs.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
@@ -150,6 +152,8 @@ server.listen(config['http']['port']
             , config['http']['address']);
 
 /* Internal */
+function noop() {}
+
 function _now() {
   return ~~(Date.now() / 1000);
 }
