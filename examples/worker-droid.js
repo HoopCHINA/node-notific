@@ -8,16 +8,6 @@ var config = {
     address: '127.0.0.1',
     port: 12320,
   },
-  mqtt: [
-    {address: '127.0.0.1', port: 3080},
-    {address: '127.0.0.1', port: 3081},
-    {address: '127.0.0.1', port: 3082},
-    {address: '127.0.0.1', port: 3083},
-    {address: '127.0.0.1', port: 3084},
-    {address: '127.0.0.1', port: 3085},
-    {address: '127.0.0.1', port: 3086},
-    {address: '127.0.0.1', port: 3087},
-  ],
   endp: [
     'tcp://127.0.0.1:12340',
     'tcp://127.0.0.1:12341',
@@ -27,6 +17,16 @@ var config = {
     'tcp://127.0.0.1:12345',
     'tcp://127.0.0.1:12346',
     'tcp://127.0.0.1:12347',
+  ],
+  mqtt: [
+    {address: '127.0.0.1', port: 3080},
+    {address: '127.0.0.1', port: 3081},
+    {address: '127.0.0.1', port: 3082},
+    {address: '127.0.0.1', port: 3083},
+    {address: '127.0.0.1', port: 3084},
+    {address: '127.0.0.1', port: 3085},
+    {address: '127.0.0.1', port: 3086},
+    {address: '127.0.0.1', port: 3087},
   ],
 };
 

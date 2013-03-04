@@ -8,6 +8,8 @@ var config = {
     address: '127.0.0.1',
     port: 12320,
   },
+  endp:
+    'tcp://127.0.0.1:12330',
   apns: {
     'com.hupu.GameMate': {
       keyfile: 'certs/key.pem',
@@ -16,7 +18,6 @@ var config = {
       maxcache: 200,
     },
   },
-  endp: 'tcp://127.0.0.1:12330',
 };
 
 var mq = zmq.socket('pull')
