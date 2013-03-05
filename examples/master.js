@@ -155,5 +155,5 @@ server.listen(config['http']['port']
 function noop() {}
 
 function _now() {
-  return ~~(Date.now() / 1000);
+  return Math.floor(Date.now() / 1000);
 }
