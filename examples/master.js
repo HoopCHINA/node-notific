@@ -7,7 +7,7 @@ var config = {
     address: '127.0.0.1',
     port: 12320,
   },
-  fbs:
+  rpc:
     'tcp://127.0.0.1:12321',
   ios: [
     'tcp://127.0.0.1:12330',
@@ -49,24 +49,24 @@ var mq = {ios: [], droid: []};
   });
 })(['ios', 'droid']);
 
-// Feedbacks
-var fbs = zmq.socket('router')
+// RPC
+var rpc = zmq.socket('router')
   , fbl = {ios: {}, droid: {}};
 
-fbs.identity = 'master-fbs';
-fbs.bindSync(config['fbs']);
-fbs.on('error', noop);
+rpc.identity = 'master-rpc';
+rpc.bindSync(config['rpc']);
+rpc.on('error', noop);
 
 if (zmq.version >= '3.0.0') {
-  fbs.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
-  fbs.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+  rpc.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+  rpc.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
 }
 
 // Feedback: [{client: time}, ...]
-fbs.on('message', function (envelope, data) {
+rpc.on('message', function (envelope, data) {
   // TODO: feedbacks
   // merge to fbl
-  fbs.send([envelope, '+OK']);
+  rpc.send([envelope, '+OK']);
 });
 
 // Create HTTP server

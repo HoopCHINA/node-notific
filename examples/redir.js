@@ -25,7 +25,7 @@ var config = {
 var mq = [];
 
 // Pre create reply buffer
-assert(config['mqtt'].length, "config['mqtt'] can't be empty");
+assert(config['mqtt'].length, "config['mqtt'] not empty");
 
 config['mqtt'].forEach(function (rec, i) {
   var buf = new Buffer(4+2+2)

@@ -14,20 +14,22 @@ var config = {
     'com.hupu.GameMate': {
       keyfile: 'certs/key.pem',
       certfile: 'certs/cert.pem',
-      push: {
-        keepalive: 300,
-        maxcache: 500,
-      },
-      feedback: {
-        keepalive: 60,
-      },
+      keepalive: 300,
+      maxcache: 200,
     },
   },
 };
 
-var mq = zmq.socket('pull')
+var mq = zmq.socket('dealer')
   , id = Number(process.argv[2]) || 0
   , push = apns.createAgent(config['apns']);
+
+
+var fb = apns.createFeedback(config['apfb']);
+
+fb.on('feedback', function (appid, data) {
+  ;
+});
 
 // Config ZMQ sockets
 mq.identity = ['worker', 'ios', id].join('-');
