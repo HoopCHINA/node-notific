@@ -1,6 +1,6 @@
 var zmq = require('zmq')
-  , http = require('http')
-  , util = require('util');
+  , util = require('util')
+  , restify = require('restify');
 
 var config = {
   http: {
@@ -9,9 +9,8 @@ var config = {
   },
   rpc:
     'tcp://127.0.0.1:12321',
-  ios: [
+  ios:
     'tcp://127.0.0.1:12330',
-  ],
   droid: [
     'tcp://127.0.0.1:12340',
     'tcp://127.0.0.1:12341',
@@ -24,128 +23,206 @@ var config = {
   ],
 };
 
-// Notific
-var mq = {ios: [], droid: []};
+// ZMQ sockets
+var rpc = _zmqMake('router', config['rpc']);
 
-// Create ZMQ sockets
-(function (types) {
-  types.forEach(function (type) {
-    config[type].forEach(function (port, i) {
-      var z = mq[type][i]
-            = zmq.socket('push');
+var mq = {
+  ios: _zmqMake('push', config['ios']),
 
-      z.identity = ['master', type, i].join('-');
-      z.bindSync(port);
-      z.on('error', noop);
+  droid: config['droid'].map(function (adr) {
+    return _zmqMake('push', adr);
+  }),
+};
 
-      if (zmq.version >= '3.0.0') {
-        z.setsockopt(zmq.ZMQ_SNDHWM, 5);
-        z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
-        z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
-      } else {
-        z.setsockopt(zmq.ZMQ_HWM, 5);
+// ZMQ feed store
+var store = {
+  ios: {exp: {}, inv: {}},
+  droid: {exp: {}},
+};
+
+// ZMQ rpc handler
+var rpcHandler = {
+  ios: {
+    feedback: function (msg) {
+      var app = msg.app
+        , feeds = msg.feeds
+        , exp = store.ios.exp;
+
+      if (!app || !feeds) return;
+
+      if (!exp[app]) exp[app] = feeds;
+      else {
+        Array.prototype.push.apply(exp[app], feeds);
       }
-    });
-  });
-})(['ios', 'droid']);
+    },
 
-// RPC
-var rpc = zmq.socket('router')
-  , fbl = {ios: {}, droid: {}};
+    invtoken: function (msg) {
+      var app = msg.app
+        , tok = msg.tok
+        , inv = store.ios.inv;
 
-rpc.identity = 'master-rpc';
-rpc.bindSync(config['rpc']);
-rpc.on('error', noop);
+      if (!app || !tok) return;
 
-if (zmq.version >= '3.0.0') {
-  rpc.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
-  rpc.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
-}
+      if (!inv[app]) inv[app] = [tok];
+      else {
+        inv[app].push(tok);
+      }
+    },
+  },
 
-// Feedback: [{client: time}, ...]
+  droid: {
+    feedback: function (msg) {
+      var app = msg.app
+        , feeds = msg.feeds
+        , exp = store.droid.exp;
+
+      if (!app || !feeds) return;
+
+      if (!exp[app]) exp[app] = feeds;
+      else {
+        Array.prototype.push.apply(exp[app], feeds);
+      }
+    },
+  },
+};
+
+// RPC: {os, c, app, tok}
 rpc.on('message', function (envelope, data) {
-  // TODO: feedbacks
-  // merge to fbl
-  rpc.send([envelope, '+OK']);
+  try {
+    var msg = JSON.parse(data) || {}
+      , os = msg.os || ''
+      , c = msg.c || ''
+      , fn = rpcHandler[os] && rpcHandler[os][c];
+
+    if (fn) fn(msg);
+
+  } catch (e) {
+    util.log('Message error! - ' + e.message);
+  }
 });
 
-// Create HTTP server
-var server = http.createServer(function (req, resp) {
-  //if (req.method == 'GET' && req.url != '/feedback') {
-    // TODO: return feedbacks according `ostype`
-    // clean fbl
-  //}
+// Create REST server
+var server = restify.createServer({name: 'node-notific'});
 
-  if (req.method != 'POST' || req.url != '/notific') {
-    resp.statusCode = 403;
-    resp.end('Forbidden');
-    return;
-  }
+var restHandler = {
+  ios: {
+    // Work: {tokens, payload, expiry}
+    notific: function (req, resp, next) {
+      var z = mq.ios
+        , app = req.params.app
+        , work = req.body || {};
 
-  var chunks = []
-    , work;
+      // Validate
+      if (!z || !app
+             || !Array.isArray(work.tokens)
+             || !work.payload
+             || (work.expiry && work.expiry <= _now())) return;
 
-  req.on('data', function (chunk) {
-    chunks.push(chunk);
-  });
-
-  req.on('end', function () {
-    try {
-      work = JSON.parse(Buffer.concat(chunks));
-    } catch (e) {}
-
-    if (work) {
-      resp.statusCode = 200;
-      resp.end('OK');
-      dispatch(work);
-    } else {
-      resp.statusCode = 500;
-      resp.end('Internal Server Error');
-    }
-  });
-});
-
-// Work: {ostype, appid, clients, payload, expiry}
-function dispatch(work) {
-  var os = work.ostype
-    , q = mq[os]
-    , p = q && q.length
-    , splits;
-
-  // Validate input
-  if (!p || !work.appid
-         || !Array.isArray(work.clients)
-         || !work.payload
-         || (work.expiry && work.expiry <= _now())) return;
-
-  if (p === 1) {
-    splits = [work.clients];
-  } else {
-    splits = [];
-    work.clients.forEach(function (c, i) {
-      var h = parseInt(c.slice(-2), 16)
-        , i = ((h >> 4) * 13 + (h & 0xf)) % p;
-      if (!splits[i]) {
-        splits[i] = [c];
-      } else {
-        splits[i].push(c);
-      }
-    });
-  }
-
-  splits.forEach(function (a, i) {
-    var z = q[i];
-    if (z) {
       z.send(JSON.stringify({
-        wrktyp: 'notific',
-        appid: work.appid,
-        clients: a,
+        typ: 'notific',
+        app: app,
+        tokens: work.tokens,
         payload: work.payload,
         expiry: work.expiry,
       }));
-    }
-  });
-}
+
+      resp.send('+OK');
+    },
+
+    feedback: function (req, resp, next) {
+      var app = req.params.app
+        , exp = store.ios.exp;
+
+      if (exp[app]) {
+        resp.send(exp[app]);
+        exp[app] = null;
+      } else {
+        resp.send([]);
+      }
+    },
+
+    invtoken: function (req, resp, next) {
+      var app = req.params.app
+        , inv = store.ios.inv;
+
+      if (inv[app]) {
+        resp.send(inv[app]);
+        inv[app] = null;
+      } else {
+        resp.send([]);
+      }
+    },
+  },
+
+  droid: {
+    // Work: {clients, payload, expiry}
+    notific: function (req, resp, next) {
+      var q = mq.droid
+        , l = q && q.length
+        , app = req.params.app
+        , work = req.body || {}
+        , splits;
+
+      // Validate
+      if (!l || !app
+             || !Array.isArray(work.clients)
+             || !work.payload
+             || (work.expiry && work.expiry <= _now())) return;
+
+      if (l === 1) {
+        splits = [work.clients];
+      } else {
+        splits = [];
+        work.clients.forEach(function (c, i) {
+          var h = parseInt(c.slice(-2), 16)
+            , i = ((h >> 4) * 13 + (h & 0xf)) % l;
+          if (!splits[i]) {
+            splits[i] = [c];
+          } else {
+            splits[i].push(c);
+          }
+        });
+      }
+
+      splits.forEach(function (a, i) {
+        var z = q[i];
+        if (z) {
+          z.send(JSON.stringify({
+            typ: 'notific',
+            app: app,
+            clients: a,
+            payload: work.payload,
+            expiry: work.expiry,
+          }));
+        }
+      });
+
+      resp.send('+OK');
+    },
+
+    feedback: function (req, resp, next) {
+      var app = req.params.app
+        , exp = store.droid.exp;
+
+      if (exp[app]) {
+        resp.send(exp[app]);
+        exp[app] = null;
+      } else {
+        resp.send([]);
+      }
+    },
+  },
+};
+
+// Config and Routes
+server.use(restify.bodyParser({ mapParams: false }));
+
+server.put('/ios/notific/:app', restHandler.ios.notific);
+server.get('/ios/feedback/:app', restHandler.ios.feedback);
+server.get('/ios/invtoken/:app', restHandler.ios.invtoken);
+
+server.put('/droid/notific/:app', restHandler.droid.notific);
+server.get('/droid/feedback/:app', restHandler.droid.feedback);
 
 // Start server
 server.listen(config['http']['port']
@@ -156,4 +233,22 @@ function noop() {}
 
 function _now() {
   return Math.floor(Date.now() / 1000);
+}
+
+function _zmqMake(typ, adr) {
+  var z = zmq.socket(typ);
+
+  z.identity = 'master';
+  z.bindSync(adr);
+  z.on('error', noop);
+
+  if (zmq.version >= '3.0.0') {
+    z.setsockopt(zmq.ZMQ_SNDHWM, 5);
+    z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+    z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+  } else {
+    z.setsockopt(zmq.ZMQ_HWM, 5);
+  }
+
+  return z;
 }

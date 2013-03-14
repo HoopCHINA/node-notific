@@ -1,5 +1,4 @@
 var zmq = require('zmq')
-  , http = require('http')
   , util = require('util')
   , apns = require('../').apns;
 
@@ -8,7 +7,9 @@ var config = {
     address: '127.0.0.1',
     port: 12320,
   },
-  endp:
+  rpc:
+    'tcp://127.0.0.1:12321',
+  ios:
     'tcp://127.0.0.1:12330',
   apns: {
     'com.hupu.GameMate': {
@@ -26,33 +27,53 @@ var config = {
 };
 
 var mq = zmq.socket('pull')
+  , rpc = zmq.socket('dealer')
   , id = Number(process.argv[2]) || 0
-  , push = apns.createAgent(config['apns']);
+  , agent = apns.createAgent(config['apns']);
 
 // Config ZMQ sockets
-mq.identity = ['worker', 'ios', id].join('-');
-mq.connect(config['endp']);
-mq.on('error', noop);
+mq.identity = rpc.identity
+            = ['worker', 'ios', id].join('-');
 
-if (zmq.version >= '3.0.0') {
-  mq.setsockopt(zmq.ZMQ_RCVHWM, 5);
-  mq.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
-  mq.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
-} else {
-  mq.setsockopt(zmq.ZMQ_HWM, 5);
-}
+mq.connect(config['ios']);
+rpc.connect(config['rpc']);
+_zmqDefault(mq);
+_zmqDefault(rpc);
 
+// Work: {typ, app, tokens, payload, expiry}
 mq.on('message', function (data) {
   try {
     var work = JSON.parse(data);
-    if (work && work.wrktyp == 'notific') {
-      push.notific(work.appid, work.clients
-                 , work.payload, work.expiry);
+
+    if (work && work.typ == 'notific') {
+      agent.notific(work.app, work.tokens
+                  , work.payload, work.expiry);
     }
   } catch (e) {
     util.log('Message error! - ' + e.message);
   }
 });
 
+agent.on('invtoken', function (app, token) {
+  rpc.send(JSON.stringify({
+    os: 'ios',
+    c: 'invtoken',
+    app: app,
+    tok: token,
+  }));
+});
+
 /* Internal */
 function noop() {}
+
+function _zmqDefault(z) {
+  z.on('error', noop);
+
+  if (zmq.version >= '3.0.0') {
+    z.setsockopt(zmq.ZMQ_SNDHWM, 5);
+    z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+    z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+  } else {
+    z.setsockopt(zmq.ZMQ_HWM, 5);
+  }
+}

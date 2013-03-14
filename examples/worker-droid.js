@@ -1,5 +1,4 @@
 var zmq = require('zmq')
-  , http = require('http')
   , util = require('util')
   , mqtt = require('../').mqtt;
 
@@ -8,7 +7,9 @@ var config = {
     address: '127.0.0.1',
     port: 12320,
   },
-  endp: [
+  rpc:
+    'tcp://127.0.0.1:12321',
+  droid: [
     'tcp://127.0.0.1:12340',
     'tcp://127.0.0.1:12341',
     'tcp://127.0.0.1:12342',
@@ -31,38 +32,57 @@ var config = {
 };
 
 var mq = zmq.socket('pull')
+  , rpc = zmq.socket('dealer')
   , id = Number(process.argv[2]) || 0
-  , push = mqtt.createServer({id: id});
+  , svr = mqtt.createServer({id: id});
 
 // Config ZMQ sockets
-mq.identity = ['worker', 'droid', id].join('-');
-mq.connect(config['endp'][id]);
-mq.on('error', noop);
+mq.identity = rpc.identity
+            = ['worker', 'droid', id].join('-');
 
-if (zmq.version >= '3.0.0') {
-  mq.setsockopt(zmq.ZMQ_RCVHWM, 5);
-  mq.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
-  mq.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
-} else {
-  mq.setsockopt(zmq.ZMQ_HWM, 5);
-}
+mq.connect(config['droid'][id]);
+rpc.connect(config['rpc']);
+_zmqDefault(mq);
+_zmqDefault(rpc);
 
-// Work: {appid, clients, payload, expiry}
+// Work: {typ, app, clients, payload, expiry}
 mq.on('message', function (data) {
   try {
     var work = JSON.parse(data);
-    if (work && work.wrktyp == 'notific') {
-      push.notific(work.appid, work.clients
-                 , work.payload, work.expiry);
+
+    if (work && work.typ == 'notific') {
+      svr.notific(work.app, work.clients
+                , work.payload, work.expiry);
     }
   } catch (e) {
     util.log('Message error! - ' + e.message);
   }
 });
 
+svr.on('feedback', function (app, feeds) {
+  rpc.send(JSON.stringify({
+    os: 'droid',
+    c: 'feedback',
+    app: app,
+    feeds: feeds,
+  }));
+});
+
 // Start push notific server
-push.listen(config['mqtt'][id]['port']
-          , config['mqtt'][id]['address']);
+svr.listen(config['mqtt'][id]['port']
+         , config['mqtt'][id]['address']);
 
 /* Internal */
 function noop() {}
+
+function _zmqDefault(z) {
+  z.on('error', noop);
+
+  if (zmq.version >= '3.0.0') {
+    z.setsockopt(zmq.ZMQ_SNDHWM, 5);
+    z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
+    z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
+  } else {
+    z.setsockopt(zmq.ZMQ_HWM, 5);
+  }
+}
