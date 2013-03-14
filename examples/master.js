@@ -1,5 +1,6 @@
 var zmq = require('zmq')
   , util = require('util')
+  , semver = require('semver')
   , restify = require('restify');
 
 var config = {
@@ -242,7 +243,7 @@ function _zmqMake(typ, adr) {
   z.bindSync(adr);
   z.on('error', noop);
 
-  if (zmq.version >= '3.0.0') {
+  if (semver.satisfies(zmq.version, '3.x')) {
     z.setsockopt(zmq.ZMQ_SNDHWM, 5);
     z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
     z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);

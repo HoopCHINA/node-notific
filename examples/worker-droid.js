@@ -1,5 +1,6 @@
 var zmq = require('zmq')
   , util = require('util')
+  , semver = require('semver')
   , mqtt = require('../').mqtt;
 
 var config = {
@@ -78,7 +79,7 @@ function noop() {}
 function _zmqDefault(z) {
   z.on('error', noop);
 
-  if (zmq.version >= '3.0.0') {
+  if (semver.satisfies(zmq.version, '3.x')) {
     z.setsockopt(zmq.ZMQ_SNDHWM, 5);
     z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE, 1);
     z.setsockopt(zmq.ZMQ_TCP_KEEPALIVE_IDLE, 150);
