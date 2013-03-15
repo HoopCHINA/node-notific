@@ -222,11 +222,11 @@ var restHandler = {
 // Config and Routes
 server.use(restify.bodyParser({ mapParams: false }));
 
-server.put('/ios/notific/:app', restHandler.ios.notific);
+server.post('/ios/notific/:app', restHandler.ios.notific);
 server.get('/ios/feedback/:app', restHandler.ios.feedback);
 server.get('/ios/invtoken/:app', restHandler.ios.invtoken);
 
-server.put('/droid/notific/:app', restHandler.droid.notific);
+server.post('/droid/notific/:app', restHandler.droid.notific);
 server.get('/droid/feedback/:app', restHandler.droid.feedback);
 
 // Start server

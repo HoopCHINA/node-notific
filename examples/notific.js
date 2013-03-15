@@ -23,7 +23,7 @@ var opts = {
   headers: {'Connection': 'close'},
 };
 
-client.put(opts, data, function (err, req, res, obj) {
+client.post(opts, data, function (err, req, res, obj) {
   assert.ifError(err);
   console.log('%d -> %j', res.statusCode, res.headers);
   console.log('%j', obj);
