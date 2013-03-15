@@ -18,7 +18,12 @@ var data = {
   },
 };
 
-client.put('/ios/notific/com.hupu.GameMate', data, function (err, req, res, obj) {
+var opts = {
+  path: '/ios/notific/com.hupu.GameMate',
+  headers: {'Connection': 'close'},
+};
+
+client.put(opts, data, function (err, req, res, obj) {
   assert.ifError(err);
   console.log('%d -> %j', res.statusCode, res.headers);
   console.log('%j', obj);
