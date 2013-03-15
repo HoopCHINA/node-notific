@@ -46,11 +46,19 @@ _zmqDefault(rpc);
 // Work: {typ, app, tokens, payload, expiry}
 mq.on('message', function (data) {
   try {
-    var work = JSON.parse(data);
+    var work = JSON.parse(data)
+      , ok;
 
     if (work && work.typ == 'notific') {
-      agent.notific(work.app, work.tokens
-                  , work.payload, work.expiry);
+      ok = agent.notific(work.app
+                       , work.tokens
+                       , work.payload
+                       , work.expiry);
+
+      if (!ok && typeof mq.pause == 'function') {
+        mq.pause();
+        setTimeout(function () { mq.resume(); }, 1*1000); // 1s
+      }
     }
   } catch (e) {
     util.log('Message error! - ' + e.message);

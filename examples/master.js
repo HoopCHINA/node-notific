@@ -5,7 +5,7 @@ var zmq = require('zmq')
   , semver = require('semver')
   , restify = require('restify');
 
-// TODO: Flow control, modify zmq...
+// TODO: More advanced flow control
 
 var config = {
   http: {
