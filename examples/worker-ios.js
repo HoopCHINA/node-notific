@@ -1,3 +1,5 @@
+/* Copyright (c) 2013 Wang Wenlin. See LICENSE for more information */
+
 var zmq = require('zmq')
   , util = require('util')
   , semver = require('semver')
