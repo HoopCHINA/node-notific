@@ -20,7 +20,7 @@ var config = {
       certfile: 'certs/cert.pem',
       push: {
         keepalive: 300,
-        maxcache: 500,
+        maxcache: 750,
       },
       feedback: {
         keepalive: 60,

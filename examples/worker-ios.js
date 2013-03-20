@@ -20,7 +20,7 @@ var config = {
       certfile: 'certs/cert.pem',
       push: {
         keepalive: 300,
-        maxcache: 500,
+        maxcache: 750,
       },
       feedback: {
         keepalive: 60,
@@ -46,19 +46,11 @@ _zmqDefault(rpc);
 // Work: {typ, app, tokens, payload, expiry}
 mq.on('message', function (data) {
   try {
-    var work = JSON.parse(data)
-      , ok;
+    var work = JSON.parse(data);
 
     if (work && work.typ == 'notific') {
-      ok = agent.notific(work.app
-                       , work.tokens
-                       , work.payload
-                       , work.expiry);
-
-      if (!ok && typeof mq.pause == 'function') {
-        mq.pause();
-        setTimeout(function () { mq.resume(); }, 1*1000); // 1s
-      }
+      agent.notific(work.app, work.tokens
+                  , work.payload, work.expiry);
     }
   } catch (e) {
     util.log('Message error! - ' + e.message);
