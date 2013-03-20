@@ -8,7 +8,7 @@ var endUrl = 'http://127.0.0.1:12320'
   , token = '01234567 01234567 01234567 01234567';
 
 var data = {
-  tokens: [token],
+  tokens: [],
   expiry: _now() + 3600,
   payload: {
     aps: {
@@ -22,6 +22,10 @@ var opts = {
   path: '/ios/notific/com.hupu.GameMate',
   headers: {'Connection': 'close'},
 };
+
+for (var i = 0; i < 999; i++) {
+  data.tokens.push(token);
+}
 
 client.post(opts, data, function (err, req, res, obj) {
   assert.ifError(err);
