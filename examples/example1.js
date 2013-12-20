@@ -1,4 +1,4 @@
-/* example1.js */
+/* Copyright (c) 2013 Wang Wenlin. See LICENSE for more information */
 
 var restify = require('restify')
   , apns = require('..').apns
@@ -30,7 +30,7 @@ var conf = {
 
 var restServer = restify.createServer({name: 'node-notific'})
   , apnsAgent = apns.createAgent(conf.apns)
-  , apnsFeedback = apns.createAgent(conf.apns)
+  , apnsFeedback = apns.createFeedback(conf.apns)
   , mqttServer = mqtt.createServer();
 
 var feedStore = {
@@ -109,14 +109,6 @@ restServer.get('/droid/feedback/:app', function (req, resp, next) {
   _sendFeeds(exps, app, resp);
 });
 
-/* Listen */
-mqttServer.listen(conf.mqtt.port, conf.mqtt.host);
-
-restServer.listen(conf.rest.port, conf.rest.host, function () {
-  console.log('%s listening at %s', restServer.name, restServer.url);
-});
-
-/* Internal */
 function _sendFeeds(store, app, resp) {
   if (store[app]) {
     resp.send(store[app]);
@@ -126,6 +118,26 @@ function _sendFeeds(store, app, resp) {
   }
 }
 
+/* Listen */
+mqttServer.listen(conf.mqtt.port, conf.mqtt.host);
+
+restServer.listen(conf.rest.port, conf.rest.host, function () {
+  console.log('%s listening at %s', restServer.name, restServer.url);
+});
+
+// TODO move in apns.js
+(function () {
+  var apps = Object.keys(conf.apns);
+  if (!apps.length) return;
+
+  setInterval(function () {
+    var app = apps.shift();
+    apps.push(app);
+    apnsFeedback.feedback(app);
+  }, ~~(30*60 / apps.length) * 1000);
+})();
+
+/* Internal */
 function _now() {
   return Math.floor(Date.now() / 1000);
 }

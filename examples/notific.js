@@ -3,12 +3,12 @@
 var restify = require('restify')
   , assert = require('assert');
 
-var endUrl = 'http://127.0.0.1:12320'
+var endUrl = 'http://127.0.0.1:3000'
   , client = restify.createJsonClient({url: endUrl})
   , token = '01234567 01234567 01234567 01234567';
 
 var data = {
-  tokens: [],
+  tokens: [token],
   expiry: _now() + 3600,
   payload: {
     aps: {
@@ -18,12 +18,8 @@ var data = {
   },
 };
 
-for (var i = 0; i < 1000; i++) {
-  data.tokens.push(token);
-}
-
 var opts = {
-  path: '/ios/notific/com.hupu.GameMate',
+  path: '/ios/notific/com.foo.bar',
   headers: {'Connection': 'close'},
 };
 
