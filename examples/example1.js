@@ -53,6 +53,17 @@ apnsFeedback.on('feedback', function (app, feeds) {
   });
 });
 
+(function () {
+  var apps = Object.keys(conf.apns);
+  if (!apps.length) return;
+
+  setInterval(function () {
+    var app = apps.shift();
+    apps.push(app);
+    apnsFeedback.feedback(app);
+  }, ~~(30*60 / apps.length) * 1000);
+})();
+
 /* MQTT */
 mqttServer.on('feedback', function (app, feeds) {
   var exps = feedStore.droid.exp
@@ -124,18 +135,6 @@ mqttServer.listen(conf.mqtt.port, conf.mqtt.host);
 restServer.listen(conf.rest.port, conf.rest.host, function () {
   console.log('%s listening at %s', restServer.name, restServer.url);
 });
-
-// TODO move in apns.js
-(function () {
-  var apps = Object.keys(conf.apns);
-  if (!apps.length) return;
-
-  setInterval(function () {
-    var app = apps.shift();
-    apps.push(app);
-    apnsFeedback.feedback(app);
-  }, ~~(30*60 / apps.length) * 1000);
-})();
 
 /* Internal */
 function _now() {
