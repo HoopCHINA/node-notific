@@ -24,9 +24,7 @@
   },
   "dependencies": {},
   "devDependencies": {
-    "restify": "2.3.4",
-    "zmq": "git://github.com/soplwang/zeromq.node.git#220mod",
-    "mqttjs": "0.1.7",
-    "semver": "1.1.2"
+    "restify": "~2.6.1",
+    "mqtt": "~0.3.7"
   }
 }
